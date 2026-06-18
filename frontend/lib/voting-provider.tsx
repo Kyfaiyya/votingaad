@@ -1,20 +1,12 @@
 "use client"
 
-/**
- * React Context Provider for the ChainVote dApp.
- * 
- * As Anggota 2 (UI/UX), I've separated the React state management from the Web3 
- * integration logic. This file manages UI states (loading, errors, toasts) 
- * and delegates the actual blockchain calls to the `lib/web3/service.ts` module,
- * which Anggota 3 can focus on.
- */
-
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -24,14 +16,19 @@ import {
   type Election,
   type Winner,
 } from "./voting-types"
-import { 
-  fetchAllElections, 
-  fetchContractOwner, 
-  createElectionOnChain, 
-  addCandidateOnChain, 
-  commitVoteOnChain, 
+import {
+  fetchAllElections,
+  fetchContractOwner,
+  createElectionOnChain,
+  addCandidateOnChain,
+  commitVoteOnChain,
   revealVoteOnChain,
-  realCommitHash
+  realCommitHash,
+  subscribeToEvents,
+  getCurrentChainId,
+  switchToNetwork,
+  parseContractError,
+  type VotingEvent,
 } from "./web3/service"
 
 export const mockCommitHash = realCommitHash
@@ -65,9 +62,10 @@ type VotingContextValue = {
   isConnecting: boolean
   isCorrectNetwork: boolean
   elections: Election[]
+  lastEvent: VotingEvent | null
   connect: () => Promise<void>
   disconnect: () => void
-  switchNetwork: () => void
+  switchNetwork: () => Promise<void>
   createElection: (title: string, durationMinutes: number) => Promise<void>
   addCandidate: (electionId: number, name: string) => Promise<void>
   commitVote: (electionId: number, hash: string) => Promise<void>
@@ -87,6 +85,8 @@ export function VotingProvider({ children }: { children: ReactNode }) {
   const [isConnecting, setIsConnecting] = useState(false)
   const [elections, setElections] = useState<Election[]>([])
   const [contractOwner, setContractOwner] = useState<string | null>(null)
+  const [lastEvent, setLastEvent] = useState<VotingEvent | null>(null)
+  const eventUnsubRef = useRef<(() => void) | null>(null)
 
   const isOwner =
     !!account &&
@@ -94,11 +94,10 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     account.toLowerCase() === contractOwner.toLowerCase()
   const isCorrectNetwork = chainId === EXPECTED_CHAIN_ID
 
-  /* ---------- Refresh Data ---------- */
   const refreshData = useCallback(async () => {
     try {
       const [data, owner] = await Promise.all([
-        fetchAllElections(),
+        fetchAllElections(account ?? undefined),
         fetchContractOwner()
       ])
       setElections(data)
@@ -106,9 +105,21 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Failed to refresh data from chain:", err)
     }
-  }, [])
+  }, [account])
 
-  /* ---------- Initialization & Events ---------- */
+  useEffect(() => {
+    const handleEvent = (event: VotingEvent) => {
+      setLastEvent(event)
+      refreshData()
+    }
+
+    eventUnsubRef.current = subscribeToEvents(handleEvent)
+
+    return () => {
+      eventUnsubRef.current?.()
+    }
+  }, [refreshData])
+
   useEffect(() => {
     const init = async () => {
       if (typeof window === "undefined" || !window.ethereum) return
@@ -116,8 +127,8 @@ export function VotingProvider({ children }: { children: ReactNode }) {
         const accounts = await window.ethereum.request({ method: "eth_accounts" }) as string[]
         if (accounts && accounts.length > 0) {
           setAccount(accounts[0])
-          const chainHex = await window.ethereum.request({ method: "eth_chainId" }) as string
-          setChainId(parseInt(chainHex, 16))
+          const chain = await getCurrentChainId()
+          setChainId(chain)
         }
       } catch {
         // Ignored
@@ -153,7 +164,6 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  /* ---------- UI Guards ---------- */
   const requireAccount = useCallback(() => {
     if (!account) {
       toast.error("Wallet not connected", {
@@ -164,7 +174,6 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     return true
   }, [account])
 
-  /* ---------- Actions ---------- */
   const connect = useCallback(async () => {
     if (!window.ethereum) {
       toast.error("MetaMask not found", {
@@ -180,18 +189,17 @@ export function VotingProvider({ children }: { children: ReactNode }) {
       }) as string[]
       setAccount(accounts[0])
 
-      const chainHex = await window.ethereum.request({
-        method: "eth_chainId",
-      }) as string
-      setChainId(parseInt(chainHex, 16))
+      const chain = await getCurrentChainId()
+      setChainId(chain)
 
       await refreshData()
 
       toast.success("Wallet connected", {
         description: `Connected as ${accounts[0].slice(0, 6)}…${accounts[0].slice(-4)}`,
       })
-    } catch (error: any) {
-      toast.error("Connection failed", { description: error?.message || "Rejected" })
+    } catch (error: unknown) {
+      const msg = parseContractError(error)
+      toast.error("Connection failed", { description: msg })
     } finally {
       setIsConnecting(false)
     }
@@ -204,36 +212,16 @@ export function VotingProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const switchNetwork = useCallback(async () => {
-    if (!window.ethereum) return
-    try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x" + EXPECTED_CHAIN_ID.toString(16) }],
-      })
+    const success = await switchToNetwork(EXPECTED_CHAIN_ID)
+    if (success) {
       toast.success("Network switched", {
         description: "Now on Hardhat Local (chainId 31337).",
       })
-    } catch (error: any) {
-      try {
-        await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: "0x" + EXPECTED_CHAIN_ID.toString(16),
-              chainName: "Hardhat Local",
-              rpcUrls: ["http://127.0.0.1:8545"],
-              nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-            },
-          ],
-        })
-      } catch {
-        toast.error("Network switch failed", { description: error?.message || "Failed" })
-      }
+    } else {
+      toast.error("Network switch failed")
     }
   }, [])
 
-  /* ---------- State Modifying Functions (Delegates to Web3 Service) ---------- */
-  
   const createElectionFn = useCallback(
     async (title: string, durationMinutes: number) => {
       if (!requireAccount()) return
@@ -244,8 +232,9 @@ export function VotingProvider({ children }: { children: ReactNode }) {
         await createElectionOnChain(title, durationMinutes)
         await refreshData()
         toast.success("Election created", { id: txToast, description: title })
-      } catch (error: any) {
-        toast.error("Failed to create election", { id: txToast, description: error?.message || "Transaction failed" })
+      } catch (error: unknown) {
+        const msg = parseContractError(error)
+        toast.error("Failed to create election", { id: txToast, description: msg })
       }
     },
     [requireAccount, refreshData],
@@ -259,8 +248,9 @@ export function VotingProvider({ children }: { children: ReactNode }) {
         await addCandidateOnChain(electionId, name)
         await refreshData()
         toast.success("Candidate added", { id: txToast, description: name })
-      } catch (error: any) {
-        toast.error("Failed to add candidate", { id: txToast, description: error?.message || "Transaction failed" })
+      } catch (error: unknown) {
+        const msg = parseContractError(error)
+        toast.error("Failed to add candidate", { id: txToast, description: msg })
       }
     },
     [requireAccount, refreshData],
@@ -274,8 +264,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
       })
       try {
         await commitVoteOnChain(electionId, hash)
-        
-        // Optimistic UI update
+
         setElections((prev) =>
           prev.map((e) =>
             e.id === electionId && account
@@ -288,8 +277,9 @@ export function VotingProvider({ children }: { children: ReactNode }) {
           id: txToast,
           description: "Reveal before the deadline to count your vote.",
         })
-      } catch (error: any) {
-        toast.error("Failed to commit vote", { id: txToast, description: error?.message || "Transaction failed" })
+      } catch (error: unknown) {
+        const msg = parseContractError(error)
+        toast.error("Failed to commit vote", { id: txToast, description: msg })
       }
     },
     [requireAccount, account],
@@ -301,8 +291,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
       const txToast = toast.loading("Revealing vote…")
       try {
         await revealVoteOnChain(electionId, candidateId, secret)
-        
-        // Optimistic UI update
+
         setElections((prev) =>
           prev.map((e) =>
             e.id === electionId && account
@@ -316,8 +305,9 @@ export function VotingProvider({ children }: { children: ReactNode }) {
           id: txToast,
           description: "Your vote is now on-chain and counted.",
         })
-      } catch (error: any) {
-        toast.error("Failed to reveal vote", { id: txToast, description: error?.message || "Transaction failed" })
+      } catch (error: unknown) {
+        const msg = parseContractError(error)
+        toast.error("Failed to reveal vote", { id: txToast, description: msg })
       }
     },
     [requireAccount, account, refreshData],
@@ -340,6 +330,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
       isConnecting,
       isCorrectNetwork,
       elections,
+      lastEvent,
       connect,
       disconnect,
       switchNetwork,
@@ -356,6 +347,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
       isConnecting,
       isCorrectNetwork,
       elections,
+      lastEvent,
       connect,
       disconnect,
       switchNetwork,

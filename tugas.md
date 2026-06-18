@@ -5,9 +5,6 @@
 | Item                   | Detail                              |
 | ---------------------- | ----------------------------------- |
 | **Nama Project**       | dApp Development                    |
-| **Modul Terkait**      | Module 12-15                        |
-| **Jumlah Anggota**     | 3 orang per kelompok                |
-| **Minggu Demo**        | Minggu 16 (16 Juni 2025)            |
 
 ## Deskripsi
 

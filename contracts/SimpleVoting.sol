@@ -128,4 +128,14 @@ contract SimpleVoting {
 
         return (winnerName, highestVote, isTie);
     }
+
+    function hasCommitted(uint256 _electionId, address _voter) public view returns (bool) {
+        Election storage e = elections[_electionId];
+        return e.commits[_voter] != bytes32(0);
+    }
+
+    function hasRevealed(uint256 _electionId, address _voter) public view returns (bool) {
+        Election storage e = elections[_electionId];
+        return e.hasRevealed[_voter];
+    }
 }

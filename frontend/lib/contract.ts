@@ -157,4 +157,24 @@ export const CONTRACT_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [
+      { internalType: "uint256", name: "_electionId", type: "uint256" },
+      { internalType: "address", name: "_voter", type: "address" },
+    ],
+    name: "hasCommitted",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "_electionId", type: "uint256" },
+      { internalType: "address", name: "_voter", type: "address" },
+    ],
+    name: "hasRevealed",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const
