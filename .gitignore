@@ -13,3 +13,8 @@ yarn-debug.log*
 yarn-error.log*
 plan.md
 learn.md
+# Frontend
+frontend/node_modules/
+frontend/.next/
+simple-voting-ui/node_modules/
+simple-voting-ui/.next/
