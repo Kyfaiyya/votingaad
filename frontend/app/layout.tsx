@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'ChainVote — Decentralized Voting dApp',
   description:
-    'On-chain commit-reveal voting dApp. Connect your wallet, vote privately, and watch results update in real time.',
+    'On-chain live voting dApp. Connect your wallet, vote securely, and watch results update in real time.',
   generator: 'v0.app',
   icons: {
     icon: [

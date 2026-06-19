@@ -7,7 +7,7 @@ export function WinnerBanner({ winner }: { winner: Winner }) {
   if (winner.highestVote === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-        No votes revealed yet — be the first to reveal.
+        No votes cast yet — be the first to vote.
       </div>
     )
   }

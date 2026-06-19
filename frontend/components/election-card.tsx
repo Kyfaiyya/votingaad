@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, Users, Check } from "lucide-react"
 import type { Election } from "@/lib/voting-types"
 import { Countdown } from "@/components/countdown"
 import { cn } from "@/lib/utils"
@@ -63,11 +63,18 @@ export function ElectionCard({
         />
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-y-2 text-xs">
         <Countdown deadline={election.deadline} />
-        <span className="font-mono">
-          {election.totalVotes} {election.totalVotes === 1 ? "vote" : "votes"} · {election.candidates?.length ?? 0} {(election.candidates?.length ?? 0) === 1 ? "candidate" : "candidates"}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1 font-medium text-muted-foreground border border-border/50">
+            <Users className="size-3 opacity-70" />
+            {election.candidates?.length ?? 0}
+          </span>
+          <span className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 font-medium text-primary border border-primary/20">
+            <Check className="size-3 opacity-70" />
+            {election.totalVotes}
+          </span>
+        </div>
       </div>
     </button>
   )

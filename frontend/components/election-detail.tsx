@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, Users, Check } from "lucide-react"
 import type { Election } from "@/lib/voting-types"
 import { useVoting } from "@/lib/voting-provider"
 import { Countdown } from "@/components/countdown"
@@ -57,9 +57,18 @@ export function ElectionDetail({ election }: { election: Election }) {
         <h2 className="mt-3 text-balance text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           {election.title}
         </h2>
-        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
           <Countdown deadline={election.deadline} />
-          <span className="font-mono">{election.totalVotes} {election.totalVotes === 1 ? "vote" : "votes"} cast</span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 font-medium text-muted-foreground border border-border/50">
+              <Users className="size-4 opacity-70" />
+              {election.candidates?.length ?? 0} candidates
+            </span>
+            <span className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 font-medium text-primary border border-primary/20">
+              <Check className="size-4 opacity-70" />
+              {election.totalVotes} votes
+            </span>
+          </div>
         </div>
       </div>
 
