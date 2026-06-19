@@ -59,7 +59,7 @@ export function ElectionDetail({ election }: { election: Election }) {
         </h2>
         <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
           <Countdown deadline={election.deadline} />
-          <span className="font-mono">{election.totalVotes} votes cast</span>
+          <span className="font-mono">{election.totalVotes} {election.totalVotes === 1 ? "vote" : "votes"} cast</span>
         </div>
       </div>
 

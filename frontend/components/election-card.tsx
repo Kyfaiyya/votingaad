@@ -66,7 +66,7 @@ export function ElectionCard({
       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
         <Countdown deadline={election.deadline} />
         <span className="font-mono">
-          {election.totalVotes} votes · {election.candidates.length} candidates
+          {election.totalVotes} {election.totalVotes === 1 ? "vote" : "votes"} · {election.candidates?.length ?? 0} {(election.candidates?.length ?? 0) === 1 ? "candidate" : "candidates"}
         </span>
       </div>
     </button>
