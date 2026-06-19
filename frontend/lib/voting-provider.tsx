@@ -21,9 +21,7 @@ import {
   fetchContractOwner,
   createElectionOnChain,
   addCandidateOnChain,
-  commitVoteOnChain,
-  revealVoteOnChain,
-  realCommitHash,
+  voteOnChain,
   subscribeToEvents,
   getCurrentChainId,
   switchToNetwork,
@@ -31,7 +29,7 @@ import {
   type VotingEvent,
 } from "./web3/service"
 
-export const mockCommitHash = realCommitHash
+// Mock hash no longer needed
 
 /* ---------- Compute winner client-side (mirrors contract logic) ---------- */
 function computeWinner(e: Election): Winner {
@@ -68,12 +66,7 @@ type VotingContextValue = {
   switchNetwork: () => Promise<void>
   createElection: (title: string, durationMinutes: number) => Promise<void>
   addCandidate: (electionId: number, name: string) => Promise<void>
-  commitVote: (electionId: number, hash: string) => Promise<void>
-  revealVote: (
-    electionId: number,
-    candidateId: number,
-    secret: string,
-  ) => Promise<void>
+  vote: (electionId: number, candidateId: number) => Promise<void>
   getWinner: (electionId: number) => Winner
 }
 
@@ -102,8 +95,13 @@ export function VotingProvider({ children }: { children: ReactNode }) {
       ])
       setElections(data)
       setContractOwner(owner)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to refresh data from chain:", err)
+      if (err?.code === "BAD_DATA" || String(err).includes("could not decode result data")) {
+        toast.error("Contract Error", {
+          description: "Smart contract not found. Please ensure your local hardhat node is running and the contract is deployed.",
+        })
+      }
     }
   }, [account])
 
@@ -256,58 +254,29 @@ export function VotingProvider({ children }: { children: ReactNode }) {
     [requireAccount, refreshData],
   )
 
-  const commitVoteFn = useCallback(
-    async (electionId: number, hash: string) => {
+  const voteFn = useCallback(
+    async (electionId: number, candidateId: number) => {
       if (!requireAccount()) return
-      const txToast = toast.loading("Committing vote…", {
-        description: "Your choice stays hidden until you reveal.",
-      })
+      const txToast = toast.loading("Casting vote...")
       try {
-        await commitVoteOnChain(electionId, hash)
+        await voteOnChain(electionId, candidateId)
 
         setElections((prev) =>
           prev.map((e) =>
             e.id === electionId && account
-              ? { ...e, commits: { ...e.commits, [account]: hash } }
-              : e,
-          ),
-        )
-
-        toast.success("Vote committed", {
-          id: txToast,
-          description: "Reveal before the deadline to count your vote.",
-        })
-      } catch (error: unknown) {
-        const msg = parseContractError(error)
-        toast.error("Failed to commit vote", { id: txToast, description: msg })
-      }
-    },
-    [requireAccount, account],
-  )
-
-  const revealVoteFn = useCallback(
-    async (electionId: number, candidateId: number, secret: string) => {
-      if (!requireAccount()) return
-      const txToast = toast.loading("Revealing vote…")
-      try {
-        await revealVoteOnChain(electionId, candidateId, secret)
-
-        setElections((prev) =>
-          prev.map((e) =>
-            e.id === electionId && account
-              ? { ...e, revealed: { ...e.revealed, [account]: true } }
+              ? { ...e, hasVoted: { ...e.hasVoted, [account]: true } }
               : e,
           ),
         )
 
         await refreshData()
-        toast.success("Vote revealed", {
+        toast.success("Vote counted", {
           id: txToast,
-          description: "Your vote is now on-chain and counted.",
+          description: "Your vote has been recorded on-chain.",
         })
       } catch (error: unknown) {
         const msg = parseContractError(error)
-        toast.error("Failed to reveal vote", { id: txToast, description: msg })
+        toast.error("Failed to vote", { id: txToast, description: msg })
       }
     },
     [requireAccount, account, refreshData],
@@ -336,8 +305,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
       switchNetwork,
       createElection: createElectionFn,
       addCandidate: addCandidateFn,
-      commitVote: commitVoteFn,
-      revealVote: revealVoteFn,
+      vote: voteFn,
       getWinner: getWinnerFn,
     }),
     [
@@ -353,8 +321,7 @@ export function VotingProvider({ children }: { children: ReactNode }) {
       switchNetwork,
       createElectionFn,
       addCandidateFn,
-      commitVoteFn,
-      revealVoteFn,
+      voteFn,
       getWinnerFn,
     ],
   )

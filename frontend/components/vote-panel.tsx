@@ -1,27 +1,20 @@
 "use client"
 
 import { useState } from "react"
-import { Eye, Loader2, Lock, ShieldCheck } from "lucide-react"
+import { CheckCircle2, Loader2, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useVoting, mockCommitHash } from "@/lib/voting-provider"
+import { useVoting } from "@/lib/voting-provider"
 import type { Election } from "@/lib/voting-types"
 import { cn } from "@/lib/utils"
 
 export function VotePanel({ election }: { election: Election }) {
-  const { account, commitVote, revealVote } = useVoting()
-  const [commitChoice, setCommitChoice] = useState<number | null>(null)
-  const [commitSecret, setCommitSecret] = useState("")
-  const [revealChoice, setRevealChoice] = useState<number | null>(null)
-  const [revealSecret, setRevealSecret] = useState("")
-  const [committing, setCommitting] = useState(false)
-  const [revealing, setRevealing] = useState(false)
+  const { account, vote } = useVoting()
+  const [choice, setChoice] = useState<number | null>(null)
+  const [voting, setVoting] = useState(false)
 
   const ended = election.deadline <= Date.now()
-  const hasCommitted = account ? Boolean(election.commits[account]) : false
-  const hasRevealed = account ? Boolean(election.revealed[account]) : false
+  const hasVoted = account ? Boolean(election.hasVoted[account]) : false
 
   if (!account) {
     return (
@@ -31,133 +24,50 @@ export function VotePanel({ election }: { election: Election }) {
     )
   }
 
-  const handleCommit = async () => {
-    if (commitChoice === null || !commitSecret) return
-    setCommitting(true)
+  const handleVote = async () => {
+    if (choice === null) return
+    setVoting(true)
     try {
-      const hash = await mockCommitHash(commitChoice, commitSecret)
-      await commitVote(election.id, hash)
+      await vote(election.id, choice)
     } finally {
-      setCommitting(false)
+      setVoting(false)
     }
   }
 
-  const handleReveal = async () => {
-    if (revealChoice === null || !revealSecret) return
-    setRevealing(true)
-    try {
-      await revealVote(election.id, revealChoice, revealSecret)
-    } finally {
-      setRevealing(false)
-    }
+  if (hasVoted) {
+    return (
+      <div className="mt-4">
+        <StatusNote
+          icon={ShieldCheck}
+          tone="success"
+          title="Vote submitted"
+          body="Your vote has been recorded on-chain and counted towards the live result."
+        />
+      </div>
+    )
   }
 
   return (
-    <Tabs defaultValue={hasCommitted ? "reveal" : "commit"} className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="commit" className="gap-1.5">
-          <Lock className="size-3.5" /> Commit
-        </TabsTrigger>
-        <TabsTrigger value="reveal" className="gap-1.5">
-          <Eye className="size-3.5" /> Reveal
-        </TabsTrigger>
-      </TabsList>
-
-      {/* COMMIT */}
-      <TabsContent value="commit" className="mt-4 space-y-4">
-        {hasCommitted ? (
-          <StatusNote
-            icon={ShieldCheck}
-            tone="success"
-            title="Vote committed"
-            body="Your choice is hidden on-chain. Switch to the Reveal tab to finalize it before the deadline."
-          />
+    <div className="mt-4 space-y-4">
+      <CandidatePicker
+        election={election}
+        value={choice}
+        onChange={setChoice}
+        disabled={ended}
+      />
+      <Button
+        className="w-full gap-2"
+        onClick={handleVote}
+        disabled={ended || voting || choice === null}
+      >
+        {voting ? (
+          <Loader2 className="size-4 animate-spin" />
         ) : (
-          <>
-            <CandidatePicker
-              election={election}
-              value={commitChoice}
-              onChange={setCommitChoice}
-              disabled={ended}
-            />
-            <div className="space-y-1.5">
-              <Label htmlFor="commit-secret">Secret phrase</Label>
-              <Input
-                id="commit-secret"
-                placeholder="e.g. my-secret-123"
-                value={commitSecret}
-                onChange={(e) => setCommitSecret(e.target.value)}
-                disabled={ended}
-              />
-              <p className="text-xs text-muted-foreground">
-                Remember this secret — you&apos;ll need the exact same value to
-                reveal your vote.
-              </p>
-            </div>
-            <Button
-              className="w-full gap-2"
-              onClick={handleCommit}
-              disabled={ended || committing || commitChoice === null || !commitSecret}
-            >
-              {committing ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Lock className="size-4" />
-              )}
-              {ended ? "Voting ended" : "Commit vote"}
-            </Button>
-          </>
+          <CheckCircle2 className="size-4" />
         )}
-      </TabsContent>
-
-      {/* REVEAL */}
-      <TabsContent value="reveal" className="mt-4 space-y-4">
-        {hasRevealed ? (
-          <StatusNote
-            icon={ShieldCheck}
-            tone="success"
-            title="Vote revealed"
-            body="Your vote has been counted on-chain. Thanks for participating!"
-          />
-        ) : !hasCommitted ? (
-          <StatusNote
-            icon={Lock}
-            tone="muted"
-            title="Nothing to reveal"
-            body="You need to commit a vote first before you can reveal it."
-          />
-        ) : (
-          <>
-            <CandidatePicker
-              election={election}
-              value={revealChoice}
-              onChange={setRevealChoice}
-            />
-            <div className="space-y-1.5">
-              <Label htmlFor="reveal-secret">Secret phrase</Label>
-              <Input
-                id="reveal-secret"
-                placeholder="Re-enter your secret"
-                value={revealSecret}
-                onChange={(e) => setRevealSecret(e.target.value)}
-              />
-            </div>
-            <Button
-              className="w-full gap-2"
-              onClick={handleReveal}
-              disabled={revealing || revealChoice === null || !revealSecret}
-            >
-              {revealing ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Eye className="size-4" />
-              )}
-              Reveal vote
-            </Button>
-          </>
-        )}
-      </TabsContent>
-    </Tabs>
+        {ended ? "Voting ended" : "Submit Vote"}
+      </Button>
+    </div>
   )
 }
 

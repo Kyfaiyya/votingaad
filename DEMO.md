@@ -2,7 +2,7 @@
 
 ## Overview
 
-ChainVote is a decentralized voting application using a commit-reveal scheme. This document provides step-by-step instructions for demonstrating the dApp.
+ChainVote is a decentralized voting application using a direct live voting scheme. This document provides step-by-step instructions for demonstrating the dApp.
 
 ---
 
@@ -44,7 +44,7 @@ Open a new terminal:
 npm run deploy:local
 ```
 
-Copy the contract address from the output (default: `0x5FbDB2315678afecb367f032d93F642f64180aa3`).
+Copy the contract address from the output (default: `0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e`).
 
 ### 4. Update Frontend Configuration
 
@@ -128,43 +128,26 @@ Navigate to `http://localhost:3000`
 
 ---
 
-### Phase 4: Commit Vote (Voter)
+### Phase 4: Cast Vote (Voter)
 
 1. Import a different account to MetaMask (voter account)
 2. Connect wallet with voter account
 3. Select the election
 4. In "Cast your vote" panel, select a candidate
-5. Enter secret phrase: `my-secret-123`
-6. 📸 **Screenshot 6**: Capture the commit form with candidate selected + secret filled
-7. Click "Commit vote"
-8. Approve transaction in MetaMask
+5. 📸 **Screenshot 6**: Capture the vote form with candidate selected
+6. Click "Submit Vote"
+7. Approve transaction in MetaMask
 
 **Expected Result:**
-- Toast: "Committing vote…"
-- Success toast: "Vote committed"
-- Commit tab shows "Vote committed" status
-- Reveal tab becomes active
-
----
-
-### Phase 5: Reveal Vote (Voter)
-
-1. Switch to "Reveal" tab
-2. Select the same candidate as committed
-3. Enter the same secret phrase: `my-secret-123`
-4. 📸 **Screenshot 7**: Capture the reveal form with candidate + secret filled
-5. Click "Reveal vote"
-6. Approve transaction in MetaMask
-
-**Expected Result:**
-- Toast: "Revealing vote…"
-- Success toast: "Vote revealed"
+- Toast: "Casting vote..."
+- Success toast: "Vote counted"
+- Panel updates to show "Vote submitted" status
 - Vote count increases in results
 - Progress bar updates
 
 ---
 
-### Phase 6: View Results
+### Phase 5: View Results
 
 1. Check "Live results" section
 2. 📸 **Screenshot 8**: Capture the full results with candidate bars + winner banner
@@ -234,14 +217,12 @@ Navigate to `http://localhost:3000`
 3. **Write Operations**
    - Create election (owner only)
    - Add candidate (owner only)
-   - Commit vote (commit-reveal)
-   - Reveal vote
+   - Vote directly
 
 4. **Event Listening**
    - ElectionCreated
    - CandidateAdded
-   - VoteCommitted
-   - VoteRevealed
+   - Voted
 
 5. **Error Handling**
    - Contract error parsing
@@ -295,9 +276,9 @@ Navigate to `http://localhost:3000`
 
 ## Security Considerations
 
-1. **Commit-Reveal Scheme**: Votes are hidden until reveal phase
+1. **Direct Voting Scheme**: Votes are processed directly on-chain and counted immediately
 2. **Owner-Only Functions**: Election creation restricted to contract owner
-3. **Double Voting Prevention**: Contract rejects duplicate commits/reveals
+3. **Double Voting Prevention**: Contract rejects duplicate votes from the same address
 4. **Deadline Enforcement**: Voting stops after deadline
 
 ---

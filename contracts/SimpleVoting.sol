@@ -17,8 +17,7 @@ contract SimpleVoting {
         uint256 candidateCount;
         uint256 totalVotes;
         mapping(uint256 => Candidate) candidates;
-        mapping(address => bytes32) commits;
-        mapping(address => bool) hasRevealed;
+        mapping(address => bool) hasVoted;
     }
 
     address public owner;
@@ -27,8 +26,7 @@ contract SimpleVoting {
 
     event ElectionCreated(uint256 electionId, string title);
     event CandidateAdded(uint256 electionId, uint256 candidateId, string name);
-    event VoteCommitted(uint256 electionId, address voter);
-    event VoteRevealed(uint256 electionId, uint256 candidateId);
+    event Voted(uint256 electionId, uint256 candidateId, address voter);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
@@ -68,29 +66,17 @@ contract SimpleVoting {
         emit CandidateAdded(_electionId, e.candidateCount, _name);
     }
 
-    function commitVote(uint256 _electionId, bytes32 _hash) public electionExists(_electionId) {
+    function vote(uint256 _electionId, uint256 _candidateId) public electionExists(_electionId) {
         Election storage e = elections[_electionId];
         require(block.timestamp <= e.deadline, "Voting ended");
-        require(e.commits[msg.sender] == bytes32(0), "Already committed");
-
-        e.commits[msg.sender] = _hash;
-
-        emit VoteCommitted(_electionId, msg.sender);
-    }
-
-    function revealVote(uint256 _electionId, uint256 _candidateId, string memory _secret) public electionExists(_electionId) {
-        Election storage e = elections[_electionId];
-        require(!e.hasRevealed[msg.sender], "Already revealed");
+        require(!e.hasVoted[msg.sender], "Already voted");
         require(_candidateId > 0 && _candidateId <= e.candidateCount, "Invalid candidate");
 
-        bytes32 generatedHash = keccak256(abi.encodePacked(_candidateId, _secret));
-        require(generatedHash == e.commits[msg.sender], "Invalid reveal");
-
-        e.hasRevealed[msg.sender] = true;
+        e.hasVoted[msg.sender] = true;
         e.candidates[_candidateId].voteCount++;
         e.totalVotes++;
 
-        emit VoteRevealed(_electionId, _candidateId);
+        emit Voted(_electionId, _candidateId, msg.sender);
     }
 
     function getCandidate(uint256 _electionId, uint256 _candidateId) public view returns (uint256, string memory, uint256) {
@@ -129,13 +115,8 @@ contract SimpleVoting {
         return (winnerName, highestVote, isTie);
     }
 
-    function hasCommitted(uint256 _electionId, address _voter) public view returns (bool) {
+    function hasVoted(uint256 _electionId, address _voter) public view returns (bool) {
         Election storage e = elections[_electionId];
-        return e.commits[_voter] != bytes32(0);
-    }
-
-    function hasRevealed(uint256 _electionId, address _voter) public view returns (bool) {
-        Election storage e = elections[_electionId];
-        return e.hasRevealed[_voter];
+        return e.hasVoted[_voter];
     }
 }

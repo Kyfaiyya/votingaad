@@ -126,7 +126,7 @@ export function ElectionDetail({ election }: { election: Election }) {
               Cast your vote
             </h3>
             <p className="mb-4 text-xs text-muted-foreground">
-              Commit-reveal keeps your choice private until you reveal it.
+              Select a candidate and submit your vote directly.
             </p>
             <VotePanel election={election} />
           </div>

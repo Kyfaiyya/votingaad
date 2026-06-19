@@ -1,7 +1,7 @@
 # Simple Voting Smart Contract
 
 ## Deskripsi
-Simple Voting adalah smart contract berbasis Solidity untuk membuat beberapa sesi voting. Owner dapat membuat election dan menambahkan kandidat, sedangkan voter memberikan suara dengan mekanisme commit-reveal agar pilihan tidak langsung terlihat saat tahap commit.
+Simple Voting adalah smart contract berbasis Solidity untuk membuat beberapa sesi voting. Owner dapat membuat election dan menambahkan kandidat, sedangkan voter memberikan suara dengan mekanisme direct live voting yang memungkinkan hasil dapat langsung terlihat secara real-time.
 
 ## Anggota Kelompok
 | No | Nama | NRP | Kontribusi |
@@ -23,12 +23,11 @@ Simple Voting adalah smart contract berbasis Solidity untuk membuat beberapa ses
 - Owner dapat membuat election
 - Owner dapat menambahkan kandidat ke election tertentu
 - Contract menolak judul election kosong dan nama kandidat kosong
-- Voter melakukan commit vote menggunakan hash
-- Voter melakukan reveal vote menggunakan candidate ID dan secret
-- Contract mencegah double commit dan double reveal
+- Voter melakukan voting langsung terhadap kandidat pilihan
+- Contract mencegah double vote (satu address hanya bisa vote satu kali per election)
 - Contract memiliki deadline commit vote per election
 - Contract dapat menampilkan detail election, kandidat, jumlah suara, pemenang sementara, dan status seri
-- Event logging untuk election baru, kandidat baru, commit vote, dan reveal vote
+- Event logging untuk election baru, kandidat baru, dan voting (Voted)
 
 ### Frontend (UI/UX)
 - Responsive design dengan Tailwind CSS
@@ -41,7 +40,7 @@ Simple Voting adalah smart contract berbasis Solidity untuk membuat beberapa ses
 ### Web3 Integration
 - MetaMask wallet connection
 - Read operations: fetch elections, candidates, winner
-- Write operations: create election, add candidate, commit/reveal vote
+- Write operations: create election, add candidate, vote
 - Event listening untuk real-time updates
 - Transaction lifecycle tracking (pending/success/failed)
 - Network detection dan switching
@@ -131,7 +130,7 @@ Navigate to `http://localhost:3000`
 
 ## Contract Address
 ```text
-0x5FbDB2315678afecb367f032d93F642f64180aa3
+0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e
 ```
 
 ## Demo
@@ -160,14 +159,10 @@ placeholder
 placeholder
 
 
-### 6. Commit Vote
+### 6. Cast Vote
 placeholder
 
 
-### 7. Reveal Vote
-placeholder
-
-
-### 8. Vote Results
+### 7. Vote Results
 placeholder
 

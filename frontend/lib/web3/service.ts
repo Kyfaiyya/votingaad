@@ -25,19 +25,14 @@ export type TxCallback = (state: TxState) => void
 /* ---------- Event Listener Types ---------- */
 
 export type VotingEvent = {
-  type: "ElectionCreated" | "CandidateAdded" | "VoteCommitted" | "VoteRevealed"
+  type: "ElectionCreated" | "CandidateAdded" | "Voted"
   electionId: number
   data: Record<string, unknown>
 }
 
 export type EventCallback = (event: VotingEvent) => void
 
-export async function realCommitHash(candidateId: number, secret: string) {
-  const { ethers } = await getEthers()
-  return ethers.keccak256(
-    ethers.solidityPacked(["uint256", "string"], [candidateId, secret]),
-  )
-}
+// Removed realCommitHash since we use direct voting
 
 export async function getProvider() {
   if (typeof window === "undefined" || !window.ethereum) return null
@@ -120,10 +115,7 @@ export function parseContractError(error: unknown): string {
     if (msg.includes("Title empty")) return "Election title cannot be empty"
     if (msg.includes("Candidate name cannot be empty")) return "Candidate name cannot be empty"
     if (msg.includes("Voting ended")) return "Voting deadline has passed"
-    if (msg.includes("Already committed")) return "You have already committed a vote"
-    if (msg.includes("Already revealed")) return "You have already revealed your vote"
-    if (msg.includes("Invalid candidate")) return "Selected candidate is invalid"
-    if (msg.includes("Invalid reveal")) return "Secret does not match your commit"
+    if (msg.includes("Already voted")) return "You have already voted in this election"
     if (msg.includes("user rejected")) return "Transaction was rejected by user"
     if (msg.includes("insufficient funds")) return "Insufficient funds for transaction"
     if (msg.includes("Internal JSON-RPC error")) return "Transaction failed - check if you're using the correct account (owner)"
@@ -195,22 +187,12 @@ export function subscribeToEvents(onEvent: EventCallback): () => void {
       )
     })
 
-    contract.on("VoteCommitted", (electionId: any, voter: string) => {
+    contract.on("Voted", (electionId: any, candidateId: any, voter: string) => {
       eventListeners.forEach((cb) =>
         cb({
-          type: "VoteCommitted",
+          type: "Voted",
           electionId: Number(electionId),
-          data: { voter },
-        })
-      )
-    })
-
-    contract.on("VoteRevealed", (electionId: any, candidateId: any) => {
-      eventListeners.forEach((cb) =>
-        cb({
-          type: "VoteRevealed",
-          electionId: Number(electionId),
-          data: { candidateId: Number(candidateId) },
+          data: { candidateId: Number(candidateId), voter },
         })
       )
     })
@@ -276,19 +258,14 @@ export async function fetchAllElections(walletAddress?: string): Promise<Electio
       })
     }
 
-    const commits: Record<string, string> = {}
-    const revealed: Record<string, boolean> = {}
+    const hasVotedFlag: Record<string, boolean> = {}
 
     if (walletAddress) {
       try {
-        const [committed, revealedStatus] = await Promise.all([
-          contract.hasCommitted(i, walletAddress),
-          contract.hasRevealed(i, walletAddress),
-        ])
-        commits[walletAddress] = committed ? "committed" : ""
-        revealed[walletAddress] = revealedStatus
+        const voted = await contract.hasVoted(i, walletAddress)
+        hasVotedFlag[walletAddress] = voted
       } catch {
-        // Contract lama tanpa hasCommitted/hasRevealed - skip
+        // Contract error - skip
       }
     }
 
@@ -299,8 +276,7 @@ export async function fetchAllElections(walletAddress?: string): Promise<Electio
       active,
       totalVotes: Number(totalVotes),
       candidates,
-      commits,
-      revealed,
+      hasVoted: hasVotedFlag,
     })
   }
 
@@ -338,18 +314,10 @@ export async function addCandidateOnChain(electionId: number, name: string) {
   return tx
 }
 
-export async function commitVoteOnChain(electionId: number, hash: string) {
+export async function voteOnChain(electionId: number, candidateId: number) {
   const contract = await getWriteContract()
   if (!contract) throw new Error("Contract not available")
-  const tx = await contract.commitVote(electionId, hash)
-  await tx.wait()
-  return tx
-}
-
-export async function revealVoteOnChain(electionId: number, candidateId: number, secret: string) {
-  const contract = await getWriteContract()
-  if (!contract) throw new Error("Contract not available")
-  const tx = await contract.revealVote(electionId, candidateId, secret)
+  const tx = await contract.vote(electionId, candidateId)
   await tx.wait()
   return tx
 }

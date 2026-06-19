@@ -14,10 +14,8 @@ export type Election = {
   active: boolean
   totalVotes: number
   candidates: Candidate[]
-  /** address -> commit hash (mock) */
-  commits: Record<string, string>
-  /** address -> revealed flag */
-  revealed: Record<string, boolean>
+  /** address -> hasVoted flag */
+  hasVoted: Record<string, boolean>
 }
 
 export type Winner = {
